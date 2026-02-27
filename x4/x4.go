@@ -63,7 +63,7 @@ type Page struct {
 	height uint16
 }
 
-type XTGXTH struct {
+type XTG struct {
 	mark string
 	width uint16
 	height uint16
@@ -72,6 +72,17 @@ type XTGXTH struct {
 	dataSize uint32
 	md5 uint64
 	Data [48000]byte
+}
+
+type XTH struct {
+	mark string
+	width uint16
+	height uint16
+	colorMode uint8
+	compression uint8
+	dataSize uint32
+	md5 uint64
+	Data [96000]byte
 }
 
 func GetXTCHeader(filePT *os.File) (Header, error){
@@ -174,31 +185,69 @@ func GetXTCPage(filePT *os.File, offset uint64, count uint16) ([]Page, error) {
 	return pages, nil
 }
 
-func GetXTCPages(pages []Page, filePT *os.File) ([]XTGXTH, error) {
-	var pictures []XTGXTH
+func GetXTCPages(pages []Page, filePT *os.File) (any, error) {
+	//get page version from first page
+	versionBuffer := make([]byte, 4)
+	_, verBufErr := filePT.ReadAt(versionBuffer, int64(pages[0].offset))
+	if verBufErr != nil {
+		return nil, verBufErr
+ 	}
 
-	for _, v := range pages {
-		var pictureData XTGXTH	
-		pageDataBuffer := make([]byte, 48022)
+	//based on page version, return correct version
+	if string(versionBuffer) == "XTG\x00" {
+		var pictures []XTG
 
-		bufferReadLen, err := filePT.ReadAt(pageDataBuffer, int64(v.offset))
-		if err != nil && bufferReadLen != 48022 {
-			return []XTGXTH{}, fmt.Errorf("%v", err)
+		for _, v := range pages {
+			var pictureData XTG	
+			pageDataBuffer := make([]byte, 48022)
+
+			bufferReadLen, err := filePT.ReadAt(pageDataBuffer, int64(v.offset))
+			if err != nil && bufferReadLen != 48022 {
+				return []XTG{}, fmt.Errorf("%v", err)
+			}
+
+			pictureData.mark = string(pageDataBuffer[0:4])
+			pictureData.width = binary.LittleEndian.Uint16(pageDataBuffer[4:6])
+			pictureData.height = binary.LittleEndian.Uint16(pageDataBuffer[6:8])
+			pictureData.colorMode = pageDataBuffer[8]
+			pictureData.compression = pageDataBuffer[9]
+			pictureData.dataSize = binary.LittleEndian.Uint32(pageDataBuffer[10:14])
+			pictureData.md5 = binary.LittleEndian.Uint64(pageDataBuffer[14:22])
+			pictureData.Data = [48000]byte(pageDataBuffer[22:])
+
+			pictures = append(pictures, pictureData)
 		}
 
-		pictureData.mark = string(pageDataBuffer[0:4])
-		pictureData.width = binary.LittleEndian.Uint16(pageDataBuffer[4:6])
-		pictureData.height = binary.LittleEndian.Uint16(pageDataBuffer[6:8])
-		pictureData.colorMode = pageDataBuffer[8]
-		pictureData.compression = pageDataBuffer[9]
-		pictureData.dataSize = binary.LittleEndian.Uint32(pageDataBuffer[10:14])
-		pictureData.md5 = binary.LittleEndian.Uint64(pageDataBuffer[14:22])
-		pictureData.Data = [48000]byte(pageDataBuffer[22:])
+		return pictures, nil
 
-		pictures = append(pictures, pictureData)
+	} else if string(versionBuffer) == "XTH\x00" {
+		var pictures []XTH
+
+		for _, v := range pages {
+			var pictureData XTH	
+			pageDataBuffer := make([]byte, 96022)
+
+			bufferReadLen, err := filePT.ReadAt(pageDataBuffer, int64(v.offset))
+			if err != nil && bufferReadLen != 48022 {
+				return []XTH{}, fmt.Errorf("%v", err)
+			}
+
+			pictureData.mark = string(pageDataBuffer[0:4])
+			pictureData.width = binary.LittleEndian.Uint16(pageDataBuffer[4:6])
+			pictureData.height = binary.LittleEndian.Uint16(pageDataBuffer[6:8])
+			pictureData.colorMode = pageDataBuffer[8]
+			pictureData.compression = pageDataBuffer[9]
+			pictureData.dataSize = binary.LittleEndian.Uint32(pageDataBuffer[10:14])
+			pictureData.md5 = binary.LittleEndian.Uint64(pageDataBuffer[14:22])
+			pictureData.Data = [96000]byte(pageDataBuffer[22:])
+
+			pictures = append(pictures, pictureData)
+		}
+
+		return pictures, nil
+	} else {
+		return nil, fmt.Errorf("test")
 	}
-
-	return pictures, nil
 }
 
 //given path will return a slice of bytes
@@ -229,10 +278,44 @@ func ExpandBitmap(data []byte) []byte{
 				tempData = append(tempData, 0x00)
 			default:
 				fmt.Println("unknown")
-		}	
+			}	
 		}
 
 	}	
 
 	return tempData
+}
+
+func ExpandXTHBitmap(data []byte) []byte {
+	var bPlanes []byte
+		inner := 0
+		outer := 48000
+		if inner != 48000 && outer != 96000 {
+			firstString := fmt.Sprintf("%08b",data[inner])
+			secondString := fmt.Sprintf("%08b", data[outer])
+			
+			for i:=0; i!=8; i++ {
+				tempString := string(firstString[i]) + string(secondString[i])
+				switch tempString {
+				case "11":
+					bPlanes = append(bPlanes, 0xFF)
+
+				case "01":
+					bPlanes = append(bPlanes, 0xC0)
+
+				case "10":
+					bPlanes = append(bPlanes, 0x40)
+
+				case "00":
+					bPlanes = append(bPlanes, 0x00)
+				
+				default:
+				fmt.Println("unknown")	
+				}
+			}
+			inner++
+			outer++
+		}
+
+	return bPlanes
 }

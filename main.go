@@ -73,15 +73,28 @@ func main() {
 						fmt.Errorf("could not get pictures: %v", pictureErr)
 					}
 					//loop through pictures
-					for _, picture := range pictures {
-						//expand bits
-						expanded := x4.ExpandBitmap(picture.Data[:])
-						//load image from bits
-						img := rl.NewImage(expanded, 480, 800, 1, rl.UncompressedGrayscale)
-						//load texture from image and add texture to texture array
-						textures = append(textures, rl.LoadTextureFromImage(img))
-
+					if xtgPicture, ok := pictures.([]x4.XTG); ok {
+						for _, picture := range xtgPicture {
+							//expand bits
+							expanded := x4.ExpandBitmap(picture.Data[:])
+							//load image from bits
+							img := rl.NewImage(expanded, 480, 800, 1, rl.UncompressedGrayscale)
+							//load texture from image and add texture to texture array
+							textures = append(textures, rl.LoadTextureFromImage(img))
+						}
+					} else if xthPicture, ok := pictures.([]x4.XTH); ok {
+						for _, picture := range xthPicture {
+							//expand bits
+							expanded := x4.ExpandXTHBitmap(picture.Data[:])
+							//load image from bits
+							img := rl.NewImage(expanded, 480, 800, 1, rl.UncompressedGrayscale)
+							//load texture from image and add texture to texture array
+							textures = append(textures, rl.LoadTextureFromImage(img))
+						}
+					} else {
+						fmt.Printf("%T", pictures)
 					}
+					
 					
 
 				}
