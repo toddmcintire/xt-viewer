@@ -287,35 +287,38 @@ func ExpandBitmap(data []byte) []byte{
 }
 
 func ExpandXTHBitmap(data []byte) []byte {
-	var bPlanes []byte
-		inner := 0
-		outer := 48000
-		if inner != 48000 && outer != 96000 {
-			firstString := fmt.Sprintf("%08b",data[inner])
-			secondString := fmt.Sprintf("%08b", data[outer])
+	bPlanes := make([]byte, 384000)
+
+	for index := 0; index != 48000; index++{
+		firstString := fmt.Sprintf("%08b",data[index])
+		secondString := fmt.Sprintf("%08b", data[index+48000])
+
+		x := (480 - 1) - (index / (800 / 8))
+        yStart := (index % (800 / 8)) * 8
+
+		for i:=0; i!=8; i++ {
+			tempString := string(firstString[i]) + string(secondString[i])
+			var tempVal byte
+			switch tempString {
+			case "00":				
+				tempVal = 0xFF
+
+			case "10":
+				tempVal = 0xC0
+
+			case "01":
+				tempVal = 0x40
+
+			case "11":
+				tempVal =0x00
 			
-			for i:=0; i!=8; i++ {
-				tempString := string(firstString[i]) + string(secondString[i])
-				switch tempString {
-				case "11":
-					bPlanes = append(bPlanes, 0xFF)
-
-				case "01":
-					bPlanes = append(bPlanes, 0xC0)
-
-				case "10":
-					bPlanes = append(bPlanes, 0x40)
-
-				case "00":
-					bPlanes = append(bPlanes, 0x00)
-				
-				default:
-				fmt.Println("unknown")	
-				}
+			default:
+			fmt.Println("unknown")	
 			}
-			inner++
-			outer++
+
+			bPlanes[(yStart+i)*480+x] = tempVal
 		}
+	}
 
 	return bPlanes
 }
