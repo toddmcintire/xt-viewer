@@ -25,6 +25,8 @@ func main() {
 
 	rl.InitWindow(480, 800, "x4 viewer")
 	rl.SetTargetFPS(60)
+	//disables pressing esc key to quit app
+	rl.SetExitKey(0)
 
 	for !rl.WindowShouldClose() {
 		//Update
@@ -113,6 +115,13 @@ func main() {
 		if (rl.IsKeyPressed(rl.KeyRight)) {
 			if (pageIndex != pageLimit-1) {
 				pageIndex++
+			}
+		}
+
+		if (rl.IsKeyPressed(rl.KeyEscape)) {
+			filePaths = nil
+			for _, unload := range textures {
+				rl.UnloadTexture(unload)
 			}
 		}
 
