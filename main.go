@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"os"
+	"strings"
+
 	rl "github.com/gen2brain/raylib-go/raylib"
 	"github.com/toddmcintire/x4-viewer.git/x4"
 )
@@ -58,22 +59,20 @@ func main() {
 					if headerErr != nil {
 						fmt.Errorf("could not get header: %v", headerErr)
 					}
-					// //get metadata for chapter offset
-					// metadata, metadataErr := x4.GetXTCMetadata(filePT, header.MetadataOffset)
-					// if metadataErr != nil {
-					// 	fmt.Errorf("could not get metadata: %v", metadataErr)
-					// }
+
 					//get array of pages
 					pages, pagesErr := x4.GetXTCPage(filePT, header.IndexOffset, header.PageCount)
 					if pagesErr != nil {
 						fmt.Errorf("could not get pages: %v", pagesErr)
 					}
 					pageLimit = int(header.PageCount)
+
 					//get picture array from pages
 					pictures, pictureErr := x4.GetXTCPages(pages, filePT)
 					if pictureErr != nil {
 						fmt.Errorf("could not get pictures: %v", pictureErr)
 					}
+
 					//loop through pictures
 					if xtgPicture, ok := pictures.([]x4.XTG); ok {
 						for _, picture := range xtgPicture {
@@ -95,13 +94,10 @@ func main() {
 						}
 					} else {
 						fmt.Printf("%T", pictures)
-					}
-					
-					
+					}			
 
 				}
-
-				
+	
 			}
 
 			rl.UnloadDroppedFiles()
@@ -131,12 +127,8 @@ func main() {
 		if len(filePaths) == 0 {
 			rl.DrawText("Drop file", 200, 400, 20, rl.DarkGray)
 		} else {
-			// if (texture != rl.Texture2D{}) {
-			// 	rl.DrawTexture(texture, 0, 0, rl.RayWhite)
-			// } else if (len(textures) != 0) {
-			// 	rl.DrawTexture(textures[0], 0, 0, rl.RayWhite)
-			// }
 			rl.DrawTexture(textures[pageIndex], 0,0,rl.RayWhite)
+			rl.DrawText(fmt.Sprintf("%d/%d", pageIndex, pageLimit), 10, 10, 12, rl.Black)
 		}
 		rl.EndDrawing()
 	}
