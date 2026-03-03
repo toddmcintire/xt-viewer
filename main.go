@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"os"
+	"strings"
+
 	rl "github.com/gen2brain/raylib-go/raylib"
 	"github.com/toddmcintire/x4-viewer.git/x4"
 )
@@ -25,6 +26,8 @@ func main() {
 
 	rl.InitWindow(480, 800, "x4 viewer")
 	rl.SetTargetFPS(60)
+	//disables pressing esc key to quit app
+	rl.SetExitKey(0)
 
 	for !rl.WindowShouldClose() {
 		//Update
@@ -56,37 +59,45 @@ func main() {
 					if headerErr != nil {
 						fmt.Errorf("could not get header: %v", headerErr)
 					}
-					// //get metadata for chapter offset
-					// metadata, metadataErr := x4.GetXTCMetadata(filePT, header.MetadataOffset)
-					// if metadataErr != nil {
-					// 	fmt.Errorf("could not get metadata: %v", metadataErr)
-					// }
+
 					//get array of pages
 					pages, pagesErr := x4.GetXTCPage(filePT, header.IndexOffset, header.PageCount)
 					if pagesErr != nil {
 						fmt.Errorf("could not get pages: %v", pagesErr)
 					}
 					pageLimit = int(header.PageCount)
+
 					//get picture array from pages
 					pictures, pictureErr := x4.GetXTCPages(pages, filePT)
 					if pictureErr != nil {
 						fmt.Errorf("could not get pictures: %v", pictureErr)
 					}
-					//loop through pictures
-					for _, picture := range pictures {
-						//expand bits
-						expanded := x4.ExpandBitmap(picture.Data[:])
-						//load image from bits
-						img := rl.NewImage(expanded, 480, 800, 1, rl.UncompressedGrayscale)
-						//load texture from image and add texture to texture array
-						textures = append(textures, rl.LoadTextureFromImage(img))
 
-					}
-					
+					//loop through pictures
+					if xtgPicture, ok := pictures.([]x4.XTG); ok {
+						for _, picture := range xtgPicture {
+							//expand bits
+							expanded := x4.ExpandBitmap(picture.Data[:])
+							//load image from bits
+							img := rl.NewImage(expanded, 480, 800, 1, rl.UncompressedGrayscale)
+							//load texture from image and add texture to texture array
+							textures = append(textures, rl.LoadTextureFromImage(img))
+						}
+					} else if xthPicture, ok := pictures.([]x4.XTH); ok {
+						for _, picture := range xthPicture {
+							//expand bits
+							expanded := x4.ExpandXTHBitmap(picture.Data[:])
+							//load image from bits
+							img := rl.NewImage(expanded, 480, 800, 1, rl.UncompressedGrayscale)
+							//load texture from image and add texture to texture array
+							textures = append(textures, rl.LoadTextureFromImage(img))
+						}
+					} else {
+						fmt.Printf("%T", pictures)
+					}			
 
 				}
-
-				
+	
 			}
 
 			rl.UnloadDroppedFiles()
@@ -103,18 +114,21 @@ func main() {
 			}
 		}
 
+		if (rl.IsKeyPressed(rl.KeyEscape)) {
+			filePaths = nil
+			for _, unload := range textures {
+				rl.UnloadTexture(unload)
+			}
+		}
+
 		//Draw
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.RayWhite)
 		if len(filePaths) == 0 {
 			rl.DrawText("Drop file", 200, 400, 20, rl.DarkGray)
 		} else {
-			// if (texture != rl.Texture2D{}) {
-			// 	rl.DrawTexture(texture, 0, 0, rl.RayWhite)
-			// } else if (len(textures) != 0) {
-			// 	rl.DrawTexture(textures[0], 0, 0, rl.RayWhite)
-			// }
 			rl.DrawTexture(textures[pageIndex], 0,0,rl.RayWhite)
+			rl.DrawText(fmt.Sprintf("%d/%d", pageIndex, pageLimit), 10, 10, 12, rl.Black)
 		}
 		rl.EndDrawing()
 	}
